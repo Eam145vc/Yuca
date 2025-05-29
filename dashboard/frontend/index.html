@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirbnBOT Dashboard</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Alpine.js for reactivity -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Custom styles -->
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="h-full bg-gray-50" x-data="dashboardApp()" x-init="init()">
+    <!-- Login Screen -->
+    <div x-show="!isAuthenticated" x-cloak class="min-h-screen flex items-center justify-center gradient-bg">
+        <div class="glass-effect p-8 rounded-2xl shadow-2xl w-full max-w-md animate-float">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-white mb-2">AirbnBOT</h1>
+                <p class="text-white/80">Ingresa tu PIN para acceder</p>
+                <!-- Airbnb Login Section -->
+                <section x-show="activeSection === 'airbnb'" class="space-y-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-semibold text-gray-800">Gestión de Login Airbnb</h3>
+                            <p class="text-sm text-gray-500 mt-1">Administra la conexión con tu cuenta de Airbnb</p>
+                        </div>
+                        
+                        <div class="p-6 space-y-6">
+                            <!-- Status Card -->
+                            <div class="bg-gray-50 rounded-lg p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="font-medium text-gray-700">Estado de Conexión</h4>
+                                    <button 
+                                        @click="checkAirbnbStatus()"
+                                        class="text-sm text-purple-600 hover:text-purple-700"
+                                    >
+                                        <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-1"></i>
+                                        Actualizar
+                                    </button>
+                                </div>
+                                
+                                <div class="space-y-3">
+                                    <div class="flex items-center">
+                                        <div class="w-3 h-3 rounded-full mr-3"
+                                             :class="airbnbStatus.loggedIn ? 'bg-green-500' : 'bg-red-500'"></div>
+                                        <span class="text-sm text-gray-600">
+                                            Estado: <span class="font-medium" x-text="airbnbStatus.loggedIn ? 'Conectado' : 'Desconectado'"></span>
+                                        </span>
+                                    </div>
+                                    
+                                    <div x-show="airbnbStatus.loggedIn" class="space-y-2">
+                                        <p class="text-sm text-gray-600">
+                                            Último login: <span x-text="formatDate(airbnbStatus.lastLogin)"></span>
+                                        </p>
+                                        <p class="text-sm text-gray-600">
+                                            Hace <span x-text="airbnbStatus.hoursAgo"></span> horas
+                                        </p>
+                                        <p x-show="airbnbStatus.cookiesExpired" class="text-sm text-yellow-600">
+                                            ⚠️ Las cookies podrían estar expiradas. Considera hacer login nuevamente.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Login Instructions -->
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <h5 class="font-medium text-blue-800 mb-2">Instrucciones para Login</h5>
+                                <ol class="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+                                    <li>Asegúrate de tener configuradas las variables AIRBNB_EMAIL y AIRBNB_PASSWORD en tu archivo .env</li>
+                                    <li>Ten Telegram abierto para recibir el código 2FA si es necesario</li>
+                                    <li>El navegador se abrirá automáticamente en el servidor</li>
+                                    <li>El proceso guardará las cookies automáticamente</li>
+                                </ol>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="flex space-x-4">
+                                <button 
+                                    @click="startAirbnbLogin()"
+                                    class="flex-1 py-3 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center justify-center"
+                                    :disabled="airbnbLoginInProgress"
+                                >
+                                    <i data-lucide="log-in" class="w-5 h-5 mr-2"></i>
+                                    <span x-text="airbnbLoginInProgress ? 'Login en progreso...' : 'Iniciar Login en Airbnb'"></span>
+                                </button>
+                                
+                                <button 
+                                    @click="clearAirbnbCookies()"
+                                    x-show="airbnbStatus.loggedIn"
+                                    class="py-3 px-4 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition flex items-center"
+                                >
+                                    <i data-lucide="log-out" class="w-5 h-5 mr-2"></i>
+                                    Limpiar Cookies
+                                </button>
+                            </div>
+                            
+                            <!-- Login Progress -->
+                            <div x-show="airbnbLoginInProgress" class="mt-6">
+                                <div class="bg-gray-100 rounded-lg p-4">
+                                    <h5 class="font-medium text-gray-700 mb-3">Progreso del Login</h5>
+                                    <div class="space-y-2">
+                                        <div class="flex items-center">
+                                            <svg class="animate-spin h-5 w-5 mr-3 text-purple-600" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                            </svg>
+                                            <span class="text-sm text-gray-600">Login en progreso...</span>
+                                        </div>
+                                        <p class="text-xs text-gray-500 ml-8">
+                                            Revisa Telegram si se solicita código 2FA
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Login Output -->
+                            <div x-show="airbnbLoginOutput.length > 0" class="mt-6">
+                                <div class="bg-gray-900 text-gray-100 rounded-lg p-4 max-h-64 overflow-y-auto">
+                                    <h5 class="font-medium mb-2">Output del Login:</h5>
+                                    <div class="space-y-1 text-xs font-mono">
+                                        <template x-for="line in airbnbLoginOutput" :key="line">
+                                            <div x-text="line"></div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            
+            <form @submit.prevent="login()">
+                <div class="mb-6">
+                    <input 
+                        type="password" 
+                        x-model="loginPin" 
+                        placeholder="PIN de acceso"
+                        class="w-full px-4 py-3 rounded-lg bg-white/20 backdrop-blur text-white placeholder-white/60 border border-white/30 focus:outline-none focus:border-white/60 transition"
+                        required
+                    >
+                </div>
+                
+                <button 
+                    type="submit"
+                    class="w-full py-3 px-4 bg-white text-purple-600 rounded-lg font-semibold hover:bg-white/90 transition duration-200 transform hover:scale-105"
+                >
+                    Ingresar
+                </button>
+                
+                <div x-show="loginError" class="mt-4 text-red-300 text-center text-sm">
+                    PIN incorrecto. Intenta nuevamente.
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div x-show="isAuthenticated" x-cloak class="flex h-full">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white shadow-lg" :class="{ '-translate-x-full': !sidebarOpen }" 
+               @click.away="sidebarOpen = false">
+            <div class="p-6">
+                <h1 class="text-2xl font-bold text-gray-800">AirbnBOT</h1>
+                <p class="text-sm text-gray-500 mt-1">Panel de Control</p>
+            </div>
+            
+            <nav class="mt-6">
+                <template x-for="item in menuItems" :key="item.id">
+                    <a 
+                        href="#"
+                        @click.prevent="activeSection = item.id"
+                        class="flex items-center px-6 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                        :class="{ 'bg-purple-50 text-purple-600 border-r-4 border-purple-600': activeSection === item.id }"
+                    >
+                        <i :data-lucide="item.icon" class="w-5 h-5 mr-3"></i>
+                        <span x-text="item.name"></span>
+                    </a>
+                </template>
+            </nav>
+            
+            <!-- Bot Status -->
+            <div class="absolute bottom-0 left-0 right-0 p-6 border-t">
+                <div class="flex items-center">
+                    <div class="w-3 h-3 rounded-full mr-2" 
+                         :class="botStatus.active ? 'bg-green-500' : 'bg-gray-300'"></div>
+                    <span class="text-sm text-gray-600">Bot: <span x-text="botStatus.active ? 'Activo' : 'Inactivo'"></span></span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto custom-scrollbar">
+            <!-- Header -->
+            <header class="bg-white shadow-sm border-b">
+                <div class="flex items-center justify-between px-6 py-4">
+                    <div class="flex items-center">
+                        <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden mr-4">
+                            <i data-lucide="menu" class="w-6 h-6"></i>
+                        </button>
+                        <h2 class="text-xl font-semibold text-gray-800" x-text="getCurrentSectionTitle()"></h2>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <button @click="toggleDarkMode()" class="p-2 hover:bg-gray-100 rounded-lg">
+                            <i data-lucide="sun" class="w-5 h-5"></i>
+                        </button>
+                        <button @click="logout()" class="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg">
+                            Cerrar Sesión
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="p-6">
+                <!-- Dashboard Overview -->
+                <section x-show="activeSection === 'overview'" class="space-y-6">
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-500">Respuestas Hoy</p>
+                                    <p class="text-2xl font-bold text-gray-800 mt-1">24</p>
+                                </div>
+                                <div class="p-3 bg-blue-100 rounded-lg">
+                                    <i data-lucide="message-circle" class="w-6 h-6 text-blue-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-500">Escaladas al Host</p>
+                                    <p class="text-2xl font-bold text-gray-800 mt-1">3</p>
+                                </div>
+                                <div class="p-3 bg-yellow-100 rounded-lg">
+                                    <i data-lucide="alert-circle" class="w-6 h-6 text-yellow-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-500">Q&A Activas</p>
+                                    <p class="text-2xl font-bold text-gray-800 mt-1" x-text="stats.totalQA"></p>
+                                </div>
+                                <div class="p-3 bg-green-100 rounded-lg">
+                                    <i data-lucide="help-circle" class="w-6 h-6 text-green-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-500">Tasa de Respuesta</p>
+                                    <p class="text-2xl font-bold text-gray-800 mt-1">89%</p>
+                                </div>
+                                <div class="p-3 bg-purple-100 rounded-lg">
+                                    <i data-lucide="trending-up" class="w-6 h-6 text-purple-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-semibold text-gray-800">Actividad Reciente</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-4">
+                                <div class="flex items-start space-x-3">
+                                    <div class="w-2 h-2 rounded-full bg-green-500 mt-2"></div>
+                                    <div>
+                                        <p class="text-sm text-gray-800">Respuesta automática a Juan sobre check-in</p>
+                                        <p class="text-xs text-gray-500">Hace 5 minutos</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start space-x-3">
+                                    <div class="w-2 h-2 rounded-full bg-yellow-500 mt-2"></div>
+                                    <div>
+                                        <p class="text-sm text-gray-800">Pregunta escalada: "¿Permiten eventos?"</p>
+                                        <p class="text-xs text-gray-500">Hace 23 minutos</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start space-x-3">
+                                    <div class="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
+                                    <div>
+                                        <p class="text-sm text-gray-800">Nueva Q&A agregada sobre WiFi</p>
+                                        <p class="text-xs text-gray-500">Hace 1 hora</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Property Details Section -->
+                <section x-show="activeSection === 'property'" class="space-y-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-semibold text-gray-800">Información de la Propiedad</h3>
+                            <p class="text-sm text-gray-500 mt-1">Configura todos los detalles de tu propiedad</p>
+                        </div>
+                        
+                        <form @submit.prevent="savePropertyData()" class="p-6 space-y-8">
+                            <!-- Información Básica -->
+                            <div>
+                                <h4 class="text-md font-semibold text-gray-700 mb-4">Información Básica</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Nombre de la Propiedad
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            x-model="propertyData.name"
+                                            placeholder="Ej: Apartamento Moderno en Laureles"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        >
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Tipo de Propiedad
+                                        </label>
+                                        <select 
+                                            x-model="propertyData.type"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        >
+                                            <option value="">Seleccionar tipo</option>
+                                            <option value="apartment">Apartamento</option>
+                                            <option value="house">Casa</option>
+                                            <option value="studio">Estudio</option>
+                                            <option value="loft">Loft</option>
+                                            <option value="villa">Villa</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Dirección
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            x-model="propertyData.address"
+                                            placeholder="Ej: Carrera 70 # 44-28, Laureles, Medellín"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        >
+                                    </div>
+                                    
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Descripción General
+                                        </label>
+                                        <textarea 
+                                            x-model="propertyData.description"
+                                            rows="3"
+                                            placeholder="Describe tu propiedad..."
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        ></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Capacidad -->
+                            <div>
+                                <h4 class="text-md font-semibold text-gray-700 mb-4">Capacidad y Espacios</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Huéspedes Máximos
+                                        </label>
+                                        <input 
+                                            type="number" 
+                                            x-model="propertyData.maxGuests"
+                                            min="1"
+                                            placeholder="4"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        >
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Habitaciones
+                                        </label>
+                                        <input 
+                                            type="number" 
+                                            x-model="propertyData.bedrooms"
+                                            min="0"
+                                            placeholder="2"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        >
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Camas
+                                        </label>
+                                        <input 
+                                            type="number" 
+                                            x-model="propertyData.beds"
+                                            min="0"
+                                            placeholder="3"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        >
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Baños
+                                        </label>
+                                        <input 
+                                            type="number" 
+                                            x-model="propertyData.bathrooms"
+                                            min="0"
+                                            step="0.5"
+                                            placeholder="1.5"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Amenities -->
+                            <div>
+                                <h4 class="text-md font-semibold text-gray-700 mb-4">Comodidades</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <template x-for="amenity in amenitiesList" :key="amenity.id">
+                                        <div class="bg-gray-50 rounded-lg p-4">
+                                            <div class="flex items-center justify-between mb-3">
+                                                <div class="flex items-center">
+                                                    <i :data-lucide="amenity.icon" class="w-5 h-5 mr-2 text-gray-600"></i>
+                                                    <span class="font-medium text-gray-700" x-text="amenity.name"></span>
+                                                </div>
+                                                <label class="relative inline-flex items-center cursor-pointer">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        :checked="propertyData.amenities[amenity.id]?.enabled"
+                                                        @change="toggleAmenity(amenity.id)"
+                                                        class="sr-only peer"
+                                                    >
+                                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                                </label>
+                                            </div>
+                                            
+                                            <div x-show="propertyData.amenities[amenity.id]?.enabled" 
+                                                 x-transition:enter="transition ease-out duration-200"
+                                                 x-transition:enter-start="opacity-0 transform scale-95"
+                                                 x-transition:enter-end="opacity-100 transform scale-100"
+                                                 class="space-y-3">
+                                                <template x-for="field in amenity.fields" :key="field.id">
+                                                    <div>
+                                                        <label class="block text-sm text-gray-600 mb-1" x-text="field.label"></label>
+                                                        <input 
+                                                            :type="field.type" 
+                                                            x-model="propertyData.amenities[amenity.id][field.id]"
+                                                            :placeholder="field.placeholder"
+                                                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                                        >
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Custom Fields -->
+                            <div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-md font-semibold text-gray-700">Campos Personalizados</h4>
+                                    <button 
+                                        type="button"
+                                        @click="addCustomField()"
+                                        class="px-3 py-1 text-sm bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition"
+                                    >
+                                        + Agregar Campo
+                                    </button>
+                                </div>
+                                
+                                <div class="space-y-3">
+                                    <template x-for="(field, index) in propertyData.customFields" :key="index">
+                                        <div class="flex gap-3 items-start">
+                                            <input 
+                                                type="text" 
+                                                x-model="field.label"
+                                                placeholder="Etiqueta del campo"
+                                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                            >
+                                            <input 
+                                                type="text" 
+                                                x-model="field.value"
+                                                placeholder="Valor"
+                                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                            >
+                                            <button 
+                                                type="button"
+                                                @click="removeCustomField(index)"
+                                                class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                                            >
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Save Button -->
+                            <div class="flex justify-end space-x-3 pt-6 border-t">
+                                <button 
+                                    type="button"
+                                    @click="resetPropertyForm()"
+                                    class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    type="submit"
+                                    class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center"
+                                    :disabled="savingProperty"
+                                >
+                                    <span x-show="!savingProperty">Guardar Cambios</span>
+                                    <span x-show="savingProperty" class="flex items-center">
+                                        <svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                        </svg>
+                                        Guardando...
+                                    </span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Q&A Management Section -->
+                <section x-show="activeSection === 'qa'" class="space-y-6">
+                    <!-- Add New Q&A -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-semibold text-gray-800">Agregar Nueva Q&A</h3>
+                        </div>
+                        
+                        <form @submit.prevent="addNewQA()" class="p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Pregunta
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        x-model="newQA.question"
+                                        placeholder="¿Cuál es la contraseña del WiFi?"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        required
+                                    >
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Categoría
+                                    </label>
+                                    <select 
+                                        x-model="newQA.category"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    >
+                                        <option value="">Seleccionar categoría</option>
+                                        <option value="check-in">Check-in/Check-out</option>
+                                        <option value="amenities">Comodidades</option>
+                                        <option value="rules">Reglas</option>
+                                        <option value="location">Ubicación</option>
+                                        <option value="other">Otros</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Respuesta
+                                    </label>
+                                    <textarea 
+                                        x-model="newQA.answer"
+                                        rows="3"
+                                        placeholder="La contraseña del WiFi es: MiCasa2024. La red se llama 'Apartamento_Laureles'."
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        required
+                                    ></textarea>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        Puedes usar variables: {guest_name}, {check_in_time}, {check_out_time}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end mt-4">
+                                <button 
+                                    type="submit"
+                                    class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                                >
+                                    Agregar Q&A
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Q&A List -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                        <div class="p-6 border-b">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-800">Banco de Q&A</h3>
+                                <div class="flex items-center space-x-3">
+                                    <input 
+                                        type="text" 
+                                        x-model="qaSearchTerm"
+                                        placeholder="Buscar Q&A..."
+                                        class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    >
+                                    <select 
+                                        x-model="qaFilterCategory"
+                                        class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    >
+                                        <option value="">Todas las categorías</option>
+                                        <option value="check-in">Check-in/Check-out</option>
+                                        <option value="amenities">Comodidades</option>
+                                        <option value="rules">Reglas</option>
+                                        <option value="location">Ubicación</option>
+                                        <option value="other">Otros</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="divide-y">
+                            <template x-for="qa in filteredQAs" :key="qa.id">
+                                <div class="p-6 hover:bg-gray-50 transition">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1 pr-4">
+                                            <div class="flex items-center mb-2">
+                                                <h4 class="font-medium text-gray-800" x-text="qa.guest_question"></h4>
+                                                <span 
+                                                    class="ml-3 px-2 py-1 text-xs rounded-full"
+                                                    :class="{
+                                                        'bg-blue-100 text-blue-600': qa.category === 'check-in',
+                                                        'bg-green-100 text-green-600': qa.category === 'amenities',
+                                                        'bg-yellow-100 text-yellow-600': qa.category === 'rules',
+                                                        'bg-purple-100 text-purple-600': qa.category === 'location',
+                                                        'bg-gray-100 text-gray-600': qa.category === 'other' || !qa.category
+                                                    }"
+                                                    x-text="getCategoryName(qa.category)"
+                                                ></span>
+                                            </div>
+                                            <p class="text-sm text-gray-600" x-text="qa.bot_answer"></p>
+                                            <div class="flex items-center mt-3 text-xs text-gray-500">
+                                                <span>Usado <span x-text="qa.usage_count || 0"></span> veces</span>
+                                                <span class="mx-2">•</span>
+                                                <span x-text="formatDate(qa.created_at)"></span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <button 
+                                                @click="editQA(qa)"
+                                                class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                                            >
+                                                <i data-lucide="edit" class="w-4 h-4"></i>
+                                            </button>
+                                            <button 
+                                                @click="deleteQA(qa.id)"
+                                                class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                                            >
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <div x-show="filteredQAs.length === 0" class="p-12 text-center text-gray-500">
+                                No se encontraron Q&As
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Analytics Section -->
+                <section x-show="activeSection === 'analytics'" class="space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Response Rate Chart -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Tasa de Respuesta</h3>
+                            <canvas id="responseRateChart"></canvas>
+                        </div>
+                        
+                        <!-- Top Questions -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Preguntas Más Frecuentes</h3>
+                            <div class="space-y-3">
+                                <template x-for="(question, index) in topQuestions" :key="index">
+                                    <div class="flex items-center justify-between">
+                                        <p class="text-sm text-gray-700" x-text="question.text"></p>
+                                        <span class="text-sm font-medium text-gray-500" x-text="question.count"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Q&A Modal -->
+    <div x-show="editingQA" x-cloak
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click.self="editingQA = null">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <h3 class="text-lg font-semibold text-gray-800">Editar Q&A</h3>
+            </div>
+            
+            <form @submit.prevent="updateQA()" x-show="editingQA" class="p-6">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Pregunta
+                        </label>
+                        <input 
+                            type="text" 
+                            x-model="editingQA.guest_question"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            required
+                        >
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Respuesta
+                        </label>
+                        <textarea 
+                            x-model="editingQA.bot_answer"
+                            rows="4"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            required
+                        ></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Categoría
+                        </label>
+                        <select 
+                            x-model="editingQA.category"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                            <option value="">Sin categoría</option>
+                            <option value="check-in">Check-in/Check-out</option>
+                            <option value="amenities">Comodidades</option>
+                            <option value="rules">Reglas</option>
+                            <option value="location">Ubicación</option>
+                            <option value="other">Otros</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button 
+                        type="button"
+                        @click="editingQA = null"
+                        class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit"
+                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                    >
+                        Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div x-show="showSuccessToast" x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform translate-y-2"
+         x-transition:enter-end="opacity-100 transform translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform translate-y-0"
+         x-transition:leave-end="opacity-0 transform translate-y-2"
+         class="fixed bottom-6 right-6 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2">
+        <i data-lucide="check-circle" class="w-5 h-5"></i>
+        <span x-text="successMessage"></span>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="/dashboard/js/app.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>

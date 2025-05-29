@@ -1,0 +1,67 @@
+{
+  "name": "",
+  "type": "",
+  "address": "",
+  "description": "",
+  "maxGuests": 4,
+  "bedrooms": 2,
+  "beds": "15",
+  "bathrooms": 1.5,
+  "amenities": {
+    "wifi": {
+      "enabled": false
+    },
+    "ac": {
+      "enabled": false
+    },
+    "kitchen": {
+      "enabled": false
+    },
+    "parking": {
+      "enabled": false
+    },
+    "tv": {
+      "enabled": false
+    },
+    "washer": {
+      "enabled": false
+    }
+  },
+  "customFields": [],
+  "location": "Laureles, Medellín, Colombia",
+  "capacity": "10 personas",
+  "wifi_username": "papa",
+  "wifi_password": "mama22",
+  "check_in_time": "después de las 3 p.m.",
+  "check_out_time": "antes de las 11 a.m.",
+  "towels_available": true,
+  "ac_available": "solo en el cuarto principal",
+  "luggage_storage_available": true,
+  "baby_chair_available": false,
+  "floor_number": "tercer piso",
+  "stairs_only": true,
+  "drying_rack_available": true,
+  "elevator_available": false,
+  "distance_to_center_minutes": "30 minutos",
+  "distance_to_comuna13_uber_minutes": "10-15 minutos",
+  "distance_to_macarena_uber_minutes": "10 minutos",
+  "metro_station_nearest": "Floresta",
+  "metro_station_nearest_walk_minutes": "15 minutos",
+  "cat_net_available": true,
+  "parking_available": false,
+  "parking_nearby_options": true,
+  "payment_on_site_allowed": false,
+  "iron_available": true,
+  "ironing_board_available": true,
+  "kitchen_counter_weight_capacity_kg": 80,
+  "washing_machine_includes_soap": false,
+  "refrigerator_includes_ice": false,
+  "refrigerator_ice_trays_available": true,
+  "bus_to_center_line": "circular sur 302",
+  "bus_to_center_distance_blocks": 2,
+  "entry_method": "código",
+  "entry_code_digits": 8,
+  "number_of_rooms": 3,
+  "lastUpdated": "2025-05-29T16:35:44.249Z",
+  "updatedBy": "dashboard"
+}
