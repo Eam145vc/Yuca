@@ -23,6 +23,8 @@ const AIRBNB_INPUT_SELECTOR = '[data-testid="messaging-composebar"]';
 const GUEST_NAME_HEADER_BUTTON_SELECTOR = 'button[data-testid="thread-header-title-button"]';
 
 const ASK_HOST_SIGNAL = "##ASK_HOST##";
+const SAVE_PAUTA_SIGNAL = "##SAVE_PAUTA##";
+const DISCARD_PAUTA_SIGNAL = "##DISCARD_PAUTA##";
 
 const MAX_IDLE_TIME = 5 * 60 * 1000;
 const CHECK_INTERVAL = 15000;
@@ -205,17 +207,6 @@ async function processAnsweredHostRequests(page) { // Removed threadId, use glob
         if (refinedResponse) {
             const success = await sendMessageToGuest(page, refinedResponse, conversationHistory);
             if (success) {
-                // Notificar al proceso padre para que pregunte al host si quiere guardar esta Q&A
-                if (process.send) {
-                    process.send({ 
-                        type: 'saveQARequest', 
-                        question: request.guestMessage, 
-                        answer: request.hostResponse,
-                        requestId: request.id
-                    });
-                }
-                
-                // Eliminar de pendingHostRequests
                 states[currentThreadId].pendingHostRequests = states[currentThreadId].pendingHostRequests.filter(req => req.id !== request.id);
                 processedCount++;
                 console.log(`[T:${currentThreadId}] ✅ Host response for ${request.id} sent to guest.`);
@@ -225,15 +216,16 @@ async function processAnsweredHostRequests(page) { // Removed threadId, use glob
     
     if (processedCount > 0) {
         saveThreadStates(states);
+        // console.log(`[T:${currentThreadId}] 💾 Saved thread states after processing ${processedCount} host responses.`); // A bit verbose
     }
     return processedCount;
 }
 
-// --- FUNCIONES AUXILIARES --- 
-async function loadCookies(page) { try {const s=fs.readFileSync(cookiePath,'utf-8'); await page.setCookie(...JSON.parse(s)); console.log(`[T:${currentThreadId}] 🍪 Cookies loaded.`);}catch(e){console.error(`[T:${currentThreadId}] ❌ Error loading cookies:`,e.message); throw e;}}
-function loadBusinessData() { try {if(!fs.existsSync(businessDataPath)) fs.writeFileSync(businessDataPath,'{}'); return JSON.parse(fs.readFileSync(businessDataPath,'utf-8'));}catch(e){console.error(`[T:${currentThreadId}] ❌ Error loading business_data:`,e.message);return{};}}
-function loadQaLog() { try {if(!fs.existsSync(qaLogPath)) fs.writeFileSync(qaLogPath,'[]'); return JSON.parse(fs.readFileSync(qaLogPath,'utf-8'));}catch(e){console.error(`[T:${currentThreadId}] ❌ Error loading qa_log:`,e.message);return[];}}
-function saveQaEntry(q, a) { try {const l=loadQaLog();l.push({guest_question:q,bot_answer:a,source:"host_approved",timestamp:new Date().toISOString()}); fs.writeFileSync(qaLogPath,JSON.stringify(l,null,2)); console.log(`[T:${currentThreadId}] 💾 Q&A entry saved.`);}catch(e){console.error(`[T:${currentThreadId}] ❌ Error saving Q&A:`,e.message);}}
+// --- FUNCIONES AUXILIARES --- (loadCookies, loadBusinessData, loadQaLog, saveQaEntry, askOpenAI are mostly unchanged)
+async function loadCookies(page) { /* ... */ try {const s=fs.readFileSync(cookiePath,'utf-8'); await page.setCookie(...JSON.parse(s)); console.log(`[T:${currentThreadId}] 🍪 Cookies loaded.`);}catch(e){console.error(`[T:${currentThreadId}] ❌ Error loading cookies:`,e.message); throw e;}}
+function loadBusinessData() { /* ... */ try {if(!fs.existsSync(businessDataPath)) fs.writeFileSync(businessDataPath,'{}'); return JSON.parse(fs.readFileSync(businessDataPath,'utf-8'));}catch(e){console.error(`[T:${currentThreadId}] ❌ Error loading business_data:`,e.message);return{};}}
+function loadQaLog() { /* ... */ try {if(!fs.existsSync(qaLogPath)) fs.writeFileSync(qaLogPath,'[]'); return JSON.parse(fs.readFileSync(qaLogPath,'utf-8'));}catch(e){console.error(`[T:${currentThreadId}] ❌ Error loading qa_log:`,e.message);return[];}}
+function saveQaEntry(q, a) { /* ... */ try {const l=loadQaLog();l.push({guest_question:q,bot_answer:a}); fs.writeFileSync(qaLogPath,JSON.stringify(l,null,2)); console.log(`[T:${currentThreadId}] 💾 Q&A entry saved.`);}catch(e){console.error(`[T:${currentThreadId}] ❌ Error saving Q&A:`,e.message);}}
 async function askOpenAI(messages, model = 'gpt-3.5-turbo', temperature = 0.5, max_tokens = 300) { try { const r = await openai.chat.completions.create({ model, messages, temperature, max_tokens }); return r.choices[0].message.content.trim(); } catch (e) { console.error(`[T:${currentThreadId}] ❌ OpenAI Error:`, e.message); return null; } }
 
 
@@ -261,10 +253,14 @@ async function getBotResponse(guestMessageText, businessData, qaLog, currentConv
     const systemPrompt = `You are an AI for "Smoke to Go, Laureles Medellín". Answer using ONLY provided data or say "${ASK_HOST_SIGNAL}". Data: ${JSON.stringify(businessData)}. Q&A: ${JSON.stringify(qaLog)}. History: ${recentHistory.map(m=>`${m.role}:${m.content}`).join('\n')||"None."}`;
     return askOpenAI([{role:'system',content:systemPrompt},{role:'user',content:`Guest: "${guestMessageText}"`}], 'gpt-4o-mini',0.20,370);
 }
-
 async function refineHostResponseForGuest(hostRawResponse, guestOriginalMessage) {
     const systemPrompt = `Refine host's raw response into a natural, empathetic message as if YOU are the host. Guest Q: "${guestOriginalMessage}". Host raw answer: "${hostRawResponse}". Respond in guest's language.`;
     return askOpenAI([{role:'system',content:systemPrompt},{role:'user',content:`Refine: "${hostRawResponse}"`}], 'gpt-4o-mini',0.5,300);
+}
+async function shouldSaveToPautas(guestQuestion, botAnswer) {
+    if (botAnswer.includes(ASK_HOST_SIGNAL)||botAnswer.length<15||loadQaLog().some(e=>e.guest_question.toLowerCase().includes(guestQuestion.toLowerCase())||guestQuestion.toLowerCase().includes(e.guest_question.toLowerCase())))return false;
+    const systemPrompt = `Save this Q&A? Respond ONLY "${SAVE_PAUTA_SIGNAL}" or "${DISCARD_PAUTA_SIGNAL}". Q:"${guestQuestion}" A:"${botAnswer}"`;
+    return await askOpenAI([{role:'system',content:systemPrompt}],'gpt-3.5-turbo',0.3,15) === SAVE_PAUTA_SIGNAL;
 }
 
 // --- EXTRACCIÓN Y ENVÍO ---
@@ -345,8 +341,9 @@ async function processSingleChatThread(chatUrl, initialHistoryJson) {
                         const isNew = conversationHistory.filter(m=>m.role==='user').length === 1;
                         const salutation = await getSalutation(isNew, message.text, currentChatGuestName);
                         const finalResponse = (salutation + botResponse).trim();
-                        await sendMessageToGuest(page, finalResponse, conversationHistory);
-                        // Ya no intentamos guardar automáticamente las respuestas del bot
+                        if (await sendMessageToGuest(page, finalResponse, conversationHistory)) {
+                            if (await shouldSaveToPautas(message.text, botResponse)) saveQaEntry(message.text, botResponse);
+                        }
                     } else {
                         console.error(`[T:${currentThreadId}] 🚨 AI failed for: "${message.text.substring(0,30)}..."`);
                         await sendToHostAsync(`Bot error (AI null response): "${message.text}". Assist.`, currentChatGuestName);

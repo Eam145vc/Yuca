@@ -10,7 +10,6 @@ const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); 
 const cookiePath = path.join(__dirname, '../data/cookies.json');
 const threadStatePath = path.join(__dirname, '../data/thread_states.json');
-const qaLogPath = path.join(__dirname, '../data/qa_log.json');
 const AIRBNB_UNREAD_MESSAGES_FILTER_URL = 'https://www.airbnb.com.co/guest/messages?unread=1';
 const AIRBNB_MESSAGE_BASE_URL = 'https://www.airbnb.com.co/guest/messages/';
 const MESSAGE_THREAD_LINK_SELECTOR = 'a[data-testid^="inbox_list_"]';
@@ -51,43 +50,6 @@ function saveThreadStates(states) {
         fs.writeFileSync(threadStatePath, JSON.stringify(states, null, 2), 'utf-8');
     } catch (error) {
         console.error('❌ Error saving thread_states.json:', error.message);
-    }
-}
-
-// --- FUNCIONES PARA MANEJAR QA_LOG ---
-function loadQaLog() {
-    try {
-        if (!fs.existsSync(qaLogPath)) {
-            fs.writeFileSync(qaLogPath, JSON.stringify([], null, 2), 'utf-8');
-            return [];
-        }
-        return JSON.parse(fs.readFileSync(qaLogPath, 'utf-8'));
-    } catch (error) {
-        console.error('❌ Error loading qa_log.json:', error.message);
-        return [];
-    }
-}
-
-function saveQaEntry(question, answer) {
-    try {
-        const qaLog = loadQaLog();
-        qaLog.push({
-            guest_question: question,
-            bot_answer: answer,
-            source: "host_approved",
-            timestamp: new Date().toISOString()
-        });
-        fs.writeFileSync(qaLogPath, JSON.stringify(qaLog, null, 2), 'utf-8');
-        console.log('✅ Q&A entry saved to knowledge base');
-        
-        // Notificar al host
-        bot.sendMessage(TELEGRAM_CHAT_ID, 
-            '✅ La respuesta ha sido guardada en la base de conocimiento.');
-            
-    } catch (error) {
-        console.error('❌ Error saving Q&A entry:', error.message);
-        bot.sendMessage(TELEGRAM_CHAT_ID, 
-            '❌ Error al guardar la respuesta en la base de conocimiento.');
     }
 }
 
@@ -180,67 +142,6 @@ bot.on('message', async (msg) => {
     }
 });
 
-// Manejar botones inline de Telegram
-bot.on('callback_query', async (callbackQuery) => {
-    const data = callbackQuery.data;
-    const chatId = callbackQuery.message.chat.id.toString();
-    const messageId = callbackQuery.message.message_id;
-    
-    if (chatId === TELEGRAM_CHAT_ID.toString()) {
-        if (data.startsWith('save_qa_')) {
-            // Extraer información de la pregunta/respuesta del mensaje
-            const messageText = callbackQuery.message.text;
-            const questionMatch = messageText.match(/\*Pregunta:\* "(.+?)"/);
-            const answerMatch = messageText.match(/\*Respuesta:\* "(.+?)"/);
-            
-            if (questionMatch && answerMatch) {
-                const question = questionMatch[1];
-                const answer = answerMatch[1];
-                
-                // Guardar en la base de conocimiento
-                saveQaEntry(question, answer);
-                
-                // Responder al callback y actualizar el mensaje
-                await bot.answerCallbackQuery(callbackQuery.id, { text: '✅ Guardado en la base de conocimiento' });
-                await bot.editMessageText(
-                    `✅ *GUARDADO EN BASE DE CONOCIMIENTO*\n\n*Pregunta:* "${question}"\n\n*Respuesta:* "${answer}"`,
-                    {
-                        chat_id: chatId,
-                        message_id: messageId,
-                        parse_mode: 'Markdown',
-                        reply_markup: { inline_keyboard: [] }
-                    }
-                );
-            } else {
-                await bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Error al extraer pregunta/respuesta' });
-            }
-        } 
-        else if (data.startsWith('discard_qa_')) {
-            await bot.answerCallbackQuery(callbackQuery.id, { text: '❌ No guardado' });
-            
-            // Extraer información para mostrar en el mensaje actualizado
-            const messageText = callbackQuery.message.text;
-            const questionMatch = messageText.match(/\*Pregunta:\* "(.+?)"/);
-            const answerMatch = messageText.match(/\*Respuesta:\* "(.+?)"/);
-            
-            if (questionMatch && answerMatch) {
-                const question = questionMatch[1];
-                const answer = answerMatch[1];
-                
-                await bot.editMessageText(
-                    `❌ *NO GUARDADO*\n\n*Pregunta:* "${question}"\n\n*Respuesta:* "${answer}"`,
-                    {
-                        chat_id: chatId,
-                        message_id: messageId,
-                        parse_mode: 'Markdown',
-                        reply_markup: { inline_keyboard: [] }
-                    }
-                );
-            }
-        }
-    }
-});
-
 // --- FUNCIONES PARA MANEJAR PROCESOS HIJO ---
 
 function spawnChildProcess(threadId, chatUrl, initialHistory = []) {
@@ -281,26 +182,6 @@ function spawnChildProcess(threadId, chatUrl, initialHistory = []) {
                 conversationHistories[msgThreadId] = { history: history, lastActivity: Date.now() };
                 // console.log(`💾 Updated conversation history for thread ${msgThreadId} (length: ${history.length})`); // Can be noisy
             }
-        } else if (message.type === 'saveQARequest') {
-            // Manejar solicitud para guardar Q&A
-            console.log(`[Parent] Child ${child.pid} requesting to save Q&A`);
-            
-            // Enviar mensaje con botones al host
-            const options = {
-                parse_mode: 'Markdown',
-                reply_markup: JSON.stringify({
-                    inline_keyboard: [
-                        [{ text: '✅ Guardar en base de conocimiento', callback_data: `save_qa_${Date.now()}` }],
-                        [{ text: '❌ No guardar', callback_data: `discard_qa_${Date.now()}` }]
-                    ]
-                })
-            };
-            
-            await bot.sendMessage(
-                TELEGRAM_CHAT_ID,
-                `📝 *¿Guardar esta respuesta en la base de conocimiento?*\n\n*Pregunta:* "${message.question}"\n\n*Respuesta:* "${message.answer}"`,
-                options
-            );
         }
     });
     
