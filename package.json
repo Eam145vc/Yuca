@@ -12,7 +12,8 @@
     "dashboard": "node server.js",
     "all": "concurrently \"npm run bot\" \"npm run dashboard\"",
     "all:dev": "concurrently \"npm run bot:dev\" \"npm run dev\"",
-    "setup": "node scripts/setup.js"
+    "setup": "node scripts/setup.js",
+    "postinstall": "npm rebuild sqlite3 --build-from-source"
   },
   "repository": {
     "type": "git",

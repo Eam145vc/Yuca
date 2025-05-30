@@ -45,7 +45,12 @@ const validateQA = (req, res, next) => {
     
     next();
 };
+const validateProperty = (req, res, next) => {
+    // TODO: implement property validation
+    next();
+};
 
 module.exports = {
-    validateQA
+    validateQA,
+    validateProperty
 };
