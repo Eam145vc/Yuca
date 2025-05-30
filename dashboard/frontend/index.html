@@ -807,6 +807,84 @@
                             </div>
                         </div>
                     </div>
+<!-- Airbnb Login Section -->
+            <section x-show="activeSection === 'airbnb'" class="space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold text-gray-800">Gestión de Login Airbnb</h3>
+                        <p class="text-sm text-gray-500 mt-1">Administra la conexión con tu cuenta de Airbnb</p>
+                    </div>
+                    <div class="p-6 space-y-6">
+                        <!-- Status Card -->
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="font-medium text-gray-700">Estado de Conexión</h4>
+                                <button @click="checkAirbnbStatus()" class="text-sm text-purple-600 hover:text-purple-700">
+                                    <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-1"></i>Actualizar
+                                </button>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 rounded-full mr-3" :class="airbnbStatus.loggedIn ? 'bg-green-500' : 'bg-red-500'"></div>
+                                    <span class="text-sm text-gray-600">
+                                        Estado: <span class="font-medium" x-text="airbnbStatus.loggedIn ? 'Conectado' : 'Desconectado'"></span>
+                                    </span>
+                                </div>
+                                <div x-show="airbnbStatus.loggedIn" class="space-y-2">
+                                    <p class="text-sm text-gray-600">Último login: <span x-text="formatDate(airbnbStatus.lastLogin)"></span></p>
+                                    <p class="text-sm text-gray-600">Hace <span x-text="airbnbStatus.hoursAgo"></span> horas</p>
+                                    <p x-show="airbnbStatus.cookiesExpired" class="text-sm text-yellow-600">⚠️ Las cookies podrían estar expiradas. Considera hacer login nuevamente.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Login Instructions -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h5 class="font-medium text-blue-800 mb-2">Instrucciones para Login</h5>
+                            <ol class="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+                                <li>Asegúrate de tener configuradas las variables AIRBNB_EMAIL y AIRBNB_PASSWORD en tu archivo .env</li>
+                                <li>Ten Telegram abierto para recibir el código 2FA si es necesario</li>
+                                <li>El navegador se abrirá automáticamente en el servidor</li>
+                                <li>El proceso guardará las cookies automáticamente</li>
+                            </ol>
+                        </div>
+                        <!-- Action Buttons -->
+                        <div class="flex space-x-4">
+                            <button @click="startAirbnbLogin()" class="flex-1 py-3 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center justify-center" :disabled="airbnbLoginInProgress">
+                                <i data-lucide="log-in" class="w-5 h-5 mr-2"></i>
+                                <span x-text="airbnbLoginInProgress ? 'Login en progreso...' : 'Iniciar Login en Airbnb'"></span>
+                            </button>
+                            <button @click="clearAirbnbCookies()" x-show="airbnbStatus.loggedIn" class="py-3 px-4 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition flex items-center">
+                                <i data-lucide="log-out" class="w-5 h-5 mr-2"></i>Limpiar Cookies
+                            </button>
+                        </div>
+                        <!-- Login Progress -->
+                        <div x-show="airbnbLoginInProgress" class="mt-6">
+                            <div class="bg-gray-100 rounded-lg p-4">
+                                <h5 class="font-medium text-gray-700 mb-3">Progreso del Login</h5>
+                                <div class="space-y-2">
+                                    <div class="flex items-center">
+                                        <svg class="animate-spin h-5 w-5 mr-3 text-purple-600" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                        </svg>
+                                        <span class="text-sm text-gray-600">Login en progreso...</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 ml-8">Revisa Telegram si se solicita código 2FA</p>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Login Output -->
+                        <div x-show="airbnbLoginOutput.length > 0" class="mt-6">
+                            <div class="bg-gray-900 text-gray-100 rounded-lg p-4 max-h-64 overflow-y-auto">
+                                <h5 class="font-medium mb-2">Output del Login:</h5>
+                                <div class="space-y-1 text-xs font-mono">
+                                    <template x-for="line in airbnbLoginOutput" :key="line"><div x-text="line"></div></template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
                 </section>
             </div>
         </main>

@@ -44,10 +44,13 @@ const chatId = process.env.TELEGRAM_CHAT_ID;
   console.log('⏸ Pausa de 3 s completada');
 
   // 5) Clic en “Continue with email”
-  const emailBtnSel = '#FMP-target > div > div > div > div._88xxct > div > div:nth-child(3) > button > div > div._bc4egv';
-  await page.waitForSelector(emailBtnSel, { visible: true });
-  await page.click(emailBtnSel);
-  console.log('➡️ Click en “Continue with email”');
+  // Click "Continue with email" button by text
+  const xpathEmailBtn = "//button[contains(., 'Continue with email') or contains(., 'Correo electrónico')]";
+  await page.waitForXPath(xpathEmailBtn, { visible: true });
+  const [emailBtn] = await page.$x(xpathEmailBtn);
+  if (!emailBtn) throw new Error('No se encontró el botón "Continue with email"');
+  await emailBtn.click();
+  console.log('➡️ Click en "Continue with email"');
 
   // 6) Escribir el email
   const emailInputSel = 'input[name="user[email]"]';

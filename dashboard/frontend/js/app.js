@@ -14,6 +14,10 @@ function dashboardApp() {
         stats: {},
         topQuestions: [],
         chartData: { labels: [], responseRates: [] },
+        // Airbnb Login State
+        airbnbStatus: { loggedIn: false, lastLogin: null, hoursAgo: 0, cookiesExpired: false },
+        airbnbLoginInProgress: false,
+        airbnbLoginOutput: [],
         
         // Q&A Management
         qaCategory: 'frequent',  // 'frequent', 'less_common', 'custom'
@@ -45,6 +49,7 @@ function dashboardApp() {
                 this.isAuthenticated = true;
                 await this.loadAllData();
                 this.startPolling();
+                this.checkAirbnbStatus();
             }
             
             // Set up event listeners
@@ -56,7 +61,7 @@ function dashboardApp() {
         // Authentication Methods
         async login() {
             try {
-                const response = await fetch('https://yuca.onrender.com/dashboard/api/auth/login', {
+                const response = await fetch('/dashboard/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ pin: this.loginPin })
