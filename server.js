@@ -9,7 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: 'https://fronted-airbnbot.onrender.com' }));
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -44,8 +44,8 @@ app.use((err, req, res, next) => {
 setupDatabase()
     .then(() => {
         app.listen(PORT, () => {
-            console.log(`🚀 AirbnBOT Server running on http://localhost:${PORT}`);
-            console.log(`📊 Dashboard available at http://localhost:${PORT}/dashboard`);
+            console.log(`🚀 AirbnBOT Server running on https://yuca.onrender.com`);
+            console.log(`📊 Dashboard available at https://yuca.onrender.com/dashboard`);
             console.log(`💾 Database initialized successfully`);
         });
     })

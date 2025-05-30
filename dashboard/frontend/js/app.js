@@ -11,6 +11,9 @@ function dashboardApp() {
         activeSection: 'overview',
         showSuccessToast: false,
         successMessage: '',
+        stats: {},
+        topQuestions: [],
+        chartData: { labels: [], responseRates: [] },
         
         // Q&A Management
         qaCategory: 'frequent',  // 'frequent', 'less_common', 'custom'
@@ -53,7 +56,7 @@ function dashboardApp() {
         // Authentication Methods
         async login() {
             try {
-                const response = await fetch('/dashboard/api/auth/login', {
+                const response = await fetch('https://yuca.onrender.com/dashboard/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ pin: this.loginPin })
@@ -103,6 +106,43 @@ function dashboardApp() {
                 console.error('Error loading Q&A data:', error);
                 this.showToast('Error al cargar las preguntas y respuestas', 'error');
             }
+        },
+        // Analytics Management Methods
+        async loadAnalytics() {
+            try {
+                const response = await this.apiCall('/dashboard/api/analytics');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.stats = data.stats;
+                    this.topQuestions = data.topQuestions;
+                    this.chartData = data.chartData;
+                    this.initCharts();
+                }
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                this.showToast('Error al cargar analíticas', 'error');
+            }
+        },
+        initCharts() {
+            const ctx = document.getElementById('responseRateChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: this.chartData.labels,
+                    datasets: [{
+                        label: 'Tasa de Respuesta',
+                        data: this.chartData.responseRates,
+                        borderColor: '#7c3aed',
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
         },
         
         // Filter Q&As by category
@@ -234,6 +274,8 @@ function dashboardApp() {
         
         // API Helper
         async apiCall(url, options = {}) {
+            const baseUrl = 'https://yuca.onrender.com';
+            const fetchUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
             const token = localStorage.getItem('airbnbot_token');
             const headers = {
                 'Content-Type': 'application/json',
@@ -244,7 +286,7 @@ function dashboardApp() {
                 headers['Authorization'] = `Bearer ${token}`;
             }
             
-            return fetch(url, {
+            return fetch(fetchUrl, {
                 ...options,
                 headers
             });
