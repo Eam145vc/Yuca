@@ -1,9 +1,36 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const mongoose = require('mongoose');
 
-// Crear conexión a la base de datos
-const dbPath = path.join(__dirname, '../../../data/airbnbot.db');
-const db = new sqlite3.Database(dbPath);
+// Decidir si usar MongoDB en producción
+const useMongo = process.env.NODE_ENV === 'production' && process.env.MONGO_URI;
+
+// Determinar directorio de datos
+let dataDir;
+if (process.env.DATA_DIR) {
+  dataDir = process.env.DATA_DIR;
+} else if (process.env.NODE_ENV === 'production') {
+  dataDir = path.join(os.tmpdir(), 'airbnbot_data');
+} else {
+  dataDir = path.join(__dirname, '../../../data');
+}
+
+// Asegurar que el directorio de datos existe
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Ruta a la base de datos
+const dbPath = path.join(dataDir, 'airbnbot.db');
+const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
+  if (err) {
+    console.error(`Error opening database at ${dbPath}:`, err);
+  } else {
+    console.log(`Connected to SQLite database at ${dbPath}`);
+  }
+});
 
 // Inicializar la base de datos
 const initDatabase = () => {
@@ -187,9 +214,14 @@ const seedQAData = () => {
 // Inicializar y sembrar datos
 const setupDatabase = async () => {
   try {
-    await initDatabase();
-    await seedQAData();
-    console.log('Database setup completed successfully');
+    if (useMongo) {
+      await mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+      console.log('Connected to MongoDB');
+    } else {
+      await initDatabase();
+      await seedQAData();
+      console.log('Database setup completed successfully');
+    }
   } catch (error) {
     console.error('Database setup failed:', error);
   }
@@ -198,5 +230,6 @@ const setupDatabase = async () => {
 // Exportar funciones y conexión
 module.exports = {
   db,
-  setupDatabase
+  setupDatabase,
+  useMongo
 };
