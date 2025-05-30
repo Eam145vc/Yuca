@@ -11,57 +11,19 @@ function dashboardApp() {
         activeSection: 'overview',
         showSuccessToast: false,
         successMessage: '',
-        savingProperty: false,
         
-        // Data
-        propertyData: {
-            name: '',
-            type: '',
-            address: '',
-            description: '',
-            maxGuests: 4,
-            bedrooms: 2,
-            beds: 3,
-            bathrooms: 1.5,
-            amenities: {},
-            customFields: []
-        },
-        
-        // Q&A Data
+        // Q&A Management
+        qaCategory: 'frequent',  // 'frequent', 'less_common', 'custom'
         qaList: [],
-        newQA: {
+        showAddQAModal: false,
+        editingQA: null,
+        qaForm: {
             question: '',
             answer: '',
-            category: ''
+            category: 'frequent'
         },
-        editingQA: null,
-        qaSearchTerm: '',
-        qaFilterCategory: '',
-        
-        // Analytics Data
-        stats: {
-            totalQA: 0,
-            todayResponses: 24,
-            escalations: 3,
-            responseRate: 89
-        },
-        topQuestions: [],
-        
-        // Airbnb Integration
-        airbnbStatus: {
-            loggedIn: false,
-            lastLogin: null,
-            hoursAgo: 0,
-            cookiesExpired: false
-        },
-        airbnbLoginInProgress: false,
-        airbnbLoginOutput: [],
-        
-        // Bot Status
-        botStatus: {
-            active: true,
-            lastCheck: new Date()
-        },
+        showDeleteConfirmation: false,
+        deleteQAId: null,
         
         // UI Configuration
         menuItems: [
@@ -70,66 +32,6 @@ function dashboardApp() {
             { id: 'qa', name: 'Q&A', icon: 'message-circle' },
             { id: 'analytics', name: 'Análisis', icon: 'bar-chart-2' },
             { id: 'airbnb', name: 'Airbnb Login', icon: 'log-in' }
-        ],
-        
-        amenitiesList: [
-            {
-                id: 'wifi',
-                name: 'Wi-Fi',
-                icon: 'wifi',
-                fields: [
-                    { id: 'ssid', label: 'Nombre de Red', type: 'text', placeholder: 'MiWiFi_5G' },
-                    { id: 'password', label: 'Contraseña', type: 'text', placeholder: 'contraseña123' },
-                    { id: 'speed', label: 'Velocidad', type: 'text', placeholder: '100 Mbps' }
-                ]
-            },
-            {
-                id: 'ac',
-                name: 'Aire Acondicionado',
-                icon: 'wind',
-                fields: [
-                    { id: 'areas', label: 'Áreas', type: 'text', placeholder: 'Habitaciones y sala' },
-                    { id: 'type', label: 'Tipo', type: 'text', placeholder: 'Split, Inverter' },
-                    { id: 'instructions', label: 'Instrucciones', type: 'text', placeholder: 'Control en mesa de noche' }
-                ]
-            },
-            {
-                id: 'kitchen',
-                name: 'Cocina',
-                icon: 'utensils',
-                fields: [
-                    { id: 'equipment', label: 'Equipamiento', type: 'text', placeholder: 'Nevera, estufa, microondas' },
-                    { id: 'utensils', label: 'Utensilios', type: 'text', placeholder: 'Platos, cubiertos, ollas' }
-                ]
-            },
-            {
-                id: 'parking',
-                name: 'Parqueadero',
-                icon: 'car',
-                fields: [
-                    { id: 'type', label: 'Tipo', type: 'text', placeholder: 'Cubierto' },
-                    { id: 'spaces', label: 'Espacios', type: 'number', placeholder: '1' },
-                    { id: 'location', label: 'Ubicación', type: 'text', placeholder: 'Sótano 2, espacio #45' }
-                ]
-            },
-            {
-                id: 'tv',
-                name: 'TV',
-                icon: 'tv',
-                fields: [
-                    { id: 'channels', label: 'Canales', type: 'text', placeholder: 'Cable básico' },
-                    { id: 'streaming', label: 'Streaming', type: 'text', placeholder: 'Netflix, Disney+' }
-                ]
-            },
-            {
-                id: 'washer',
-                name: 'Lavadora',
-                icon: 'circle',
-                fields: [
-                    { id: 'location', label: 'Ubicación', type: 'text', placeholder: 'Zona de lavandería' },
-                    { id: 'instructions', label: 'Instrucciones', type: 'text', placeholder: 'Usar detergente líquido' }
-                ]
-            }
         ],
         
         // Initialization
@@ -184,254 +86,123 @@ function dashboardApp() {
         // Data Loading
         async loadAllData() {
             await Promise.all([
-                this.loadPropertyData(),
                 this.loadQAData(),
-                this.loadAnalytics(),
-                this.checkAirbnbStatus()
+                this.loadAnalytics()
             ]);
         },
         
-        async loadPropertyData() {
-            try {
-                const response = await this.apiCall('/dashboard/api/property');
-                if (response.ok) {
-                    const data = await response.json();
-                    this.propertyData = { ...this.propertyData, ...data };
-                    
-                    // Initialize amenities if not present
-                    this.amenitiesList.forEach(amenity => {
-                        if (!this.propertyData.amenities[amenity.id]) {
-                            this.propertyData.amenities[amenity.id] = { enabled: false };
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error('Error loading property data:', error);
-            }
-        },
-        
+        // Q&A Management Methods
         async loadQAData() {
             try {
                 const response = await this.apiCall('/dashboard/api/qa');
                 if (response.ok) {
                     const data = await response.json();
                     this.qaList = data;
-                    this.stats.totalQA = data.length;
                 }
             } catch (error) {
                 console.error('Error loading Q&A data:', error);
+                this.showToast('Error al cargar las preguntas y respuestas', 'error');
             }
         },
         
-        async loadAnalytics() {
+        // Filter Q&As by category
+        get filteredQAsByCategory() {
+            return this.qaList.filter(qa => qa.category === this.qaCategory);
+        },
+        
+        // Show Add Q&A Modal
+        showAddQAForm() {
+            this.qaForm = {
+                question: '',
+                answer: '',
+                category: this.qaCategory
+            };
+            this.showAddQAModal = true;
+        },
+        
+        // Edit Q&A
+        editQA(qa) {
+            this.qaForm = {
+                id: qa.id,
+                question: qa.question,
+                answer: qa.answer,
+                category: qa.category
+            };
+            this.editingQA = qa.id;
+            this.showAddQAModal = true;
+        },
+        
+        // Cancel Q&A Edit
+        cancelQAEdit() {
+            this.qaForm = {
+                question: '',
+                answer: '',
+                category: this.qaCategory
+            };
+            this.editingQA = null;
+            this.showAddQAModal = false;
+        },
+        
+        // Save Q&A
+        async saveQA() {
             try {
-                const response = await this.apiCall('/dashboard/api/analytics');
-                if (response.ok) {
-                    const data = await response.json();
-                    this.stats = { ...this.stats, ...data.stats };
-                    this.topQuestions = data.topQuestions || [];
-                    
-                    // Update charts
-                    this.$nextTick(() => {
-                        this.updateCharts(data);
+                let response;
+                
+                if (this.editingQA) {
+                    // Update existing Q&A
+                    response = await this.apiCall(`/dashboard/api/qa/${this.editingQA}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(this.qaForm)
+                    });
+                } else {
+                    // Create new Q&A
+                    response = await this.apiCall('/dashboard/api/qa', {
+                        method: 'POST',
+                        body: JSON.stringify(this.qaForm)
                     });
                 }
-            } catch (error) {
-                console.error('Error loading analytics:', error);
-            }
-        },
-        
-        // Property Management
-        toggleAmenity(amenityId) {
-            if (!this.propertyData.amenities[amenityId]) {
-                this.propertyData.amenities[amenityId] = { enabled: false };
-            }
-            this.propertyData.amenities[amenityId].enabled = !this.propertyData.amenities[amenityId].enabled;
-        },
-        
-        addCustomField() {
-            this.propertyData.customFields.push({ label: '', value: '' });
-        },
-        
-        removeCustomField(index) {
-            this.propertyData.customFields.splice(index, 1);
-        },
-        
-        async savePropertyData() {
-            this.savingProperty = true;
-            try {
-                const response = await this.apiCall('/dashboard/api/property', {
-                    method: 'POST',
-                    body: JSON.stringify(this.propertyData)
-                });
-                
-                if (response.ok) {
-                    this.showToast('Información de propiedad guardada exitosamente');
-                }
-            } catch (error) {
-                console.error('Error saving property data:', error);
-                this.showToast('Error al guardar la información', 'error');
-            } finally {
-                this.savingProperty = false;
-            }
-        },
-        
-        resetPropertyForm() {
-            this.loadPropertyData();
-        },
-        
-        // Q&A Management
-        async addNewQA() {
-            try {
-                const response = await this.apiCall('/dashboard/api/qa', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        guest_question: this.newQA.question,
-                        bot_answer: this.newQA.answer,
-                        category: this.newQA.category
-                    })
-                });
                 
                 if (response.ok) {
                     await this.loadQAData();
-                    this.newQA = { question: '', answer: '', category: '' };
-                    this.showToast('Q&A agregada exitosamente');
-                }
-            } catch (error) {
-                console.error('Error adding Q&A:', error);
-                this.showToast('Error al agregar Q&A', 'error');
-            }
-        },
-        
-        editQA(qa) {
-            this.editingQA = { ...qa };
-        },
-        
-        async updateQA() {
-            try {
-                const response = await this.apiCall(`/dashboard/api/qa/${this.editingQA.id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(this.editingQA)
-                });
-                
-                if (response.ok) {
-                    await this.loadQAData();
+                    this.showAddQAModal = false;
                     this.editingQA = null;
-                    this.showToast('Q&A actualizada exitosamente');
+                    this.qaForm = {
+                        question: '',
+                        answer: '',
+                        category: this.qaCategory
+                    };
+                    this.showToast(this.editingQA ? 'Pregunta actualizada exitosamente' : 'Pregunta agregada exitosamente');
                 }
             } catch (error) {
-                console.error('Error updating Q&A:', error);
-                this.showToast('Error al actualizar Q&A', 'error');
+                console.error('Error saving Q&A:', error);
+                this.showToast('Error al guardar la pregunta', 'error');
             }
         },
         
-        async deleteQA(id) {
-            if (!confirm('¿Estás seguro de eliminar esta Q&A?')) return;
+        // Confirm Delete Q&A
+        confirmDeleteQA(id) {
+            this.deleteQAId = id;
+            this.showDeleteConfirmation = true;
+        },
+        
+        // Delete Q&A
+        async deleteQA() {
+            if (!this.deleteQAId) return;
             
             try {
-                const response = await this.apiCall(`/dashboard/api/qa/${id}`, {
+                const response = await this.apiCall(`/dashboard/api/qa/${this.deleteQAId}`, {
                     method: 'DELETE'
                 });
                 
                 if (response.ok) {
                     await this.loadQAData();
-                    this.showToast('Q&A eliminada exitosamente');
+                    this.showDeleteConfirmation = false;
+                    this.deleteQAId = null;
+                    this.showToast('Pregunta eliminada exitosamente');
                 }
             } catch (error) {
                 console.error('Error deleting Q&A:', error);
-                this.showToast('Error al eliminar Q&A', 'error');
-            }
-        },
-        
-        // Computed properties
-        get filteredQAs() {
-            return this.qaList.filter(qa => {
-                const matchesSearch = !this.qaSearchTerm || 
-                    qa.guest_question.toLowerCase().includes(this.qaSearchTerm.toLowerCase()) ||
-                    qa.bot_answer.toLowerCase().includes(this.qaSearchTerm.toLowerCase());
-                
-                const matchesCategory = !this.qaFilterCategory || qa.category === this.qaFilterCategory;
-                
-                return matchesSearch && matchesCategory;
-            });
-        },
-        
-        // Airbnb Integration Methods
-        async checkAirbnbStatus() {
-            try {
-                const response = await this.apiCall('/dashboard/api/airbnb/status');
-                if (response.ok) {
-                    const data = await response.json();
-                    this.airbnbStatus = data;
-                }
-            } catch (error) {
-                console.error('Error checking Airbnb status:', error);
-            }
-        },
-        
-        async startAirbnbLogin() {
-            if (this.airbnbLoginInProgress) return;
-            
-            this.airbnbLoginInProgress = true;
-            this.airbnbLoginOutput = [];
-            
-            try {
-                const response = await this.apiCall('/dashboard/api/airbnb/login', {
-                    method: 'POST'
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    this.showToast(data.message);
-                    
-                    // Poll for status updates
-                    const pollInterval = setInterval(async () => {
-                        await this.checkAirbnbStatus();
-                        
-                        // Check if login completed
-                        if (this.airbnbStatus.loggedIn || !this.airbnbLoginInProgress) {
-                            clearInterval(pollInterval);
-                            this.airbnbLoginInProgress = false;
-                            
-                            if (this.airbnbStatus.loggedIn) {
-                                this.showToast('Login completado exitosamente', 'success');
-                            }
-                        }
-                    }, 5000); // Check every 5 seconds
-                    
-                    // Stop polling after 5 minutes
-                    setTimeout(() => {
-                        clearInterval(pollInterval);
-                        this.airbnbLoginInProgress = false;
-                    }, 5 * 60 * 1000);
-                    
-                } else {
-                    const error = await response.json();
-                    this.showToast(error.error || 'Error al iniciar login', 'error');
-                    this.airbnbLoginInProgress = false;
-                }
-            } catch (error) {
-                console.error('Error starting Airbnb login:', error);
-                this.showToast('Error al conectar con el servidor', 'error');
-                this.airbnbLoginInProgress = false;
-            }
-        },
-        
-        async clearAirbnbCookies() {
-            if (!confirm('¿Estás seguro de que quieres limpiar las cookies de Airbnb?')) return;
-            
-            try {
-                const response = await this.apiCall('/dashboard/api/airbnb/logout', {
-                    method: 'POST'
-                });
-                
-                if (response.ok) {
-                    await this.checkAirbnbStatus();
-                    this.showToast('Cookies eliminadas exitosamente');
-                }
-            } catch (error) {
-                console.error('Error clearing cookies:', error);
-                this.showToast('Error al limpiar cookies', 'error');
+                this.showToast('Error al eliminar la pregunta', 'error');
             }
         },
         
@@ -441,24 +212,15 @@ function dashboardApp() {
             return section ? section.name : 'Dashboard';
         },
         
-        getCategoryName(category) {
-            const categories = {
-                'check-in': 'Check-in/out',
-                'amenities': 'Comodidades',
-                'rules': 'Reglas',
-                'location': 'Ubicación',
-                'other': 'Otros'
-            };
-            return categories[category] || 'Sin categoría';
-        },
-        
         formatDate(dateString) {
             if (!dateString) return 'N/A';
             const date = new Date(dateString);
             return date.toLocaleDateString('es-CO', { 
                 year: 'numeric', 
                 month: 'short', 
-                day: 'numeric' 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
             });
         },
         
@@ -468,10 +230,6 @@ function dashboardApp() {
             setTimeout(() => {
                 this.showSuccessToast = false;
             }, 3000);
-        },
-        
-        toggleDarkMode() {
-            document.documentElement.classList.toggle('dark');
         },
         
         // API Helper
@@ -497,9 +255,8 @@ function dashboardApp() {
         
         startPolling() {
             this.pollingInterval = setInterval(async () => {
-                await this.checkBotStatus();
-                if (this.activeSection === 'analytics') {
-                    await this.loadAnalytics();
+                if (this.activeSection === 'qa') {
+                    await this.loadQAData();
                 }
             }, 30000); // Check every 30 seconds
         },
@@ -508,59 +265,6 @@ function dashboardApp() {
             if (this.pollingInterval) {
                 clearInterval(this.pollingInterval);
                 this.pollingInterval = null;
-            }
-        },
-        
-        async checkBotStatus() {
-            try {
-                const response = await fetch('/health');
-                if (response.ok) {
-                    const data = await response.json();
-                    this.botStatus.active = data.services.bot === 'active';
-                    this.botStatus.lastCheck = new Date();
-                }
-            } catch (error) {
-                this.botStatus.active = false;
-            }
-        },
-        
-        // Charts
-        updateCharts(analyticsData) {
-            // Response Rate Chart
-            const ctx = document.getElementById('responseRateChart');
-            if (ctx && analyticsData.chartData) {
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: analyticsData.chartData.labels,
-                        datasets: [{
-                            label: 'Tasa de Respuesta Automática',
-                            data: analyticsData.chartData.responseRates,
-                            borderColor: 'rgb(147, 51, 234)',
-                            backgroundColor: 'rgba(147, 51, 234, 0.1)',
-                            tension: 0.4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100,
-                                ticks: {
-                                    callback: function(value) {
-                                        return value + '%';
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
             }
         }
     };

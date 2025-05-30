@@ -6,9 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
-    "dev": "nodemon server.js",
+    "dev": "nodemon --config nodemon.json server.js",
     "bot": "node scripts/monitorNewChats.js",
-    "bot:dev": "nodemon scripts/monitorNewChats.js",
+    "bot:dev": "nodemon --config nodemon.json scripts/monitorNewChats.js",
     "dashboard": "node server.js",
     "all": "concurrently \"npm run bot\" \"npm run dashboard\"",
     "all:dev": "concurrently \"npm run bot:dev\" \"npm run dev\"",

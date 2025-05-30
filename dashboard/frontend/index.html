@@ -588,149 +588,202 @@
 
                 <!-- Q&A Management Section -->
                 <section x-show="activeSection === 'qa'" class="space-y-6">
-                    <!-- Add New Q&A -->
+                    <!-- Q&A Categories -->
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100">
                         <div class="p-6 border-b">
-                            <h3 class="text-lg font-semibold text-gray-800">Agregar Nueva Q&A</h3>
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-800">Preguntas y Respuestas</h3>
+                                <button
+                                    @click="showAddQAModal = true"
+                                    class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center"
+                                >
+                                    <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                                    Agregar Pregunta
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Category Tabs -->
+                        <div class="border-b">
+                            <div class="flex p-4 space-x-4">
+                                <button
+                                    @click="qaCategory = 'frequent'"
+                                    class="px-4 py-2 rounded-lg transition"
+                                    :class="qaCategory === 'frequent' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'"
+                                >
+                                    Preguntas Frecuentes
+                                </button>
+                                <button
+                                    @click="qaCategory = 'less_common'"
+                                    class="px-4 py-2 rounded-lg transition"
+                                    :class="qaCategory === 'less_common' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'"
+                                >
+                                    Preguntas Menos Comunes
+                                </button>
+                                <button
+                                    @click="qaCategory = 'custom'"
+                                    class="px-4 py-2 rounded-lg transition"
+                                    :class="qaCategory === 'custom' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'"
+                                >
+                                    Preguntas Personalizadas
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Q&A Table -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
+                                            Pregunta/Tema
+                                        </th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Respuesta
+                                        </th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                                            Acciones
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <template x-for="qa in filteredQAsByCategory" :key="qa.id">
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4">
+                                                <div class="text-sm text-gray-900" x-text="qa.question"></div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="text-sm text-gray-900" x-text="qa.answer"></div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <div class="flex justify-end space-x-2">
+                                                    <button
+                                                        @click="editQA(qa)"
+                                                        class="text-indigo-600 hover:text-indigo-900"
+                                                        title="Editar"
+                                                    >
+                                                        <i data-lucide="edit" class="w-4 h-4"></i>
+                                                    </button>
+                                                    <button
+                                                        @click="confirmDeleteQA(qa.id)"
+                                                        class="text-red-600 hover:text-red-900"
+                                                        title="Eliminar"
+                                                    >
+                                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                    <tr x-show="filteredQAsByCategory.length === 0">
+                                        <td colspan="3" class="px-6 py-10 text-center text-gray-500">
+                                            No hay preguntas en esta categoría
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Add/Edit Q&A Modal -->
+                <div
+                    x-show="showAddQAModal || editingQA"
+                    x-cloak
+                    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                    @click.self="cancelQAEdit()"
+                >
+                    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-semibold text-gray-800" x-text="editingQA ? 'Editar Pregunta' : 'Agregar Nueva Pregunta'"></h3>
                         </div>
                         
-                        <form @submit.prevent="addNewQA()" class="p-6">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Pregunta
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        x-model="newQA.question"
-                                        placeholder="¿Cuál es la contraseña del WiFi?"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                        required
-                                    >
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Categoría
-                                    </label>
-                                    <select 
-                                        x-model="newQA.category"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    >
-                                        <option value="">Seleccionar categoría</option>
-                                        <option value="check-in">Check-in/Check-out</option>
-                                        <option value="amenities">Comodidades</option>
-                                        <option value="rules">Reglas</option>
-                                        <option value="location">Ubicación</option>
-                                        <option value="other">Otros</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="md:col-span-2">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Respuesta
-                                    </label>
-                                    <textarea 
-                                        x-model="newQA.answer"
-                                        rows="3"
-                                        placeholder="La contraseña del WiFi es: MiCasa2024. La red se llama 'Apartamento_Laureles'."
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                        required
-                                    ></textarea>
-                                    <p class="text-xs text-gray-500 mt-1">
-                                        Puedes usar variables: {guest_name}, {check_in_time}, {check_out_time}
-                                    </p>
-                                </div>
+                        <form @submit.prevent="saveQA()" class="p-6 space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Pregunta
+                                </label>
+                                <input
+                                    type="text"
+                                    x-model="qaForm.question"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    required
+                                >
                             </div>
                             
-                            <div class="flex justify-end mt-4">
-                                <button 
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Respuesta
+                                </label>
+                                <textarea
+                                    x-model="qaForm.answer"
+                                    rows="4"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    required
+                                ></textarea>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Categoría
+                                </label>
+                                <select
+                                    x-model="qaForm.category"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    required
+                                >
+                                    <option value="frequent">Preguntas Frecuentes</option>
+                                    <option value="less_common">Preguntas Menos Comunes</option>
+                                    <option value="custom">Preguntas Personalizadas</option>
+                                </select>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3 pt-4">
+                                <button
+                                    type="button"
+                                    @click="cancelQAEdit()"
+                                    class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
                                     type="submit"
                                     class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                                 >
-                                    Agregar Q&A
+                                    <span x-text="editingQA ? 'Guardar Cambios' : 'Agregar'"></span>
                                 </button>
                             </div>
                         </form>
                     </div>
+                </div>
 
-                    <!-- Q&A List -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-                        <div class="p-6 border-b">
-                            <div class="flex items-center justify-between">
-                                <h3 class="text-lg font-semibold text-gray-800">Banco de Q&A</h3>
-                                <div class="flex items-center space-x-3">
-                                    <input 
-                                        type="text" 
-                                        x-model="qaSearchTerm"
-                                        placeholder="Buscar Q&A..."
-                                        class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    >
-                                    <select 
-                                        x-model="qaFilterCategory"
-                                        class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    >
-                                        <option value="">Todas las categorías</option>
-                                        <option value="check-in">Check-in/Check-out</option>
-                                        <option value="amenities">Comodidades</option>
-                                        <option value="rules">Reglas</option>
-                                        <option value="location">Ubicación</option>
-                                        <option value="other">Otros</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
+                <!-- Delete Confirmation Modal -->
+                <div
+                    x-show="showDeleteConfirmation"
+                    x-cloak
+                    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                    @click.self="showDeleteConfirmation = false"
+                >
+                    <div class="bg-white rounded-xl shadow-lg p-6 max-w-md w-full mx-4">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Confirmar Eliminación</h3>
+                        <p class="text-gray-600 mb-6">¿Estás seguro de que deseas eliminar esta pregunta? Esta acción no se puede deshacer.</p>
                         
-                        <div class="divide-y">
-                            <template x-for="qa in filteredQAs" :key="qa.id">
-                                <div class="p-6 hover:bg-gray-50 transition">
-                                    <div class="flex items-start justify-between">
-                                        <div class="flex-1 pr-4">
-                                            <div class="flex items-center mb-2">
-                                                <h4 class="font-medium text-gray-800" x-text="qa.guest_question"></h4>
-                                                <span 
-                                                    class="ml-3 px-2 py-1 text-xs rounded-full"
-                                                    :class="{
-                                                        'bg-blue-100 text-blue-600': qa.category === 'check-in',
-                                                        'bg-green-100 text-green-600': qa.category === 'amenities',
-                                                        'bg-yellow-100 text-yellow-600': qa.category === 'rules',
-                                                        'bg-purple-100 text-purple-600': qa.category === 'location',
-                                                        'bg-gray-100 text-gray-600': qa.category === 'other' || !qa.category
-                                                    }"
-                                                    x-text="getCategoryName(qa.category)"
-                                                ></span>
-                                            </div>
-                                            <p class="text-sm text-gray-600" x-text="qa.bot_answer"></p>
-                                            <div class="flex items-center mt-3 text-xs text-gray-500">
-                                                <span>Usado <span x-text="qa.usage_count || 0"></span> veces</span>
-                                                <span class="mx-2">•</span>
-                                                <span x-text="formatDate(qa.created_at)"></span>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center space-x-2">
-                                            <button 
-                                                @click="editQA(qa)"
-                                                class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
-                                            >
-                                                <i data-lucide="edit" class="w-4 h-4"></i>
-                                            </button>
-                                            <button 
-                                                @click="deleteQA(qa.id)"
-                                                class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                                            >
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                            
-                            <div x-show="filteredQAs.length === 0" class="p-12 text-center text-gray-500">
-                                No se encontraron Q&As
-                            </div>
+                        <div class="flex justify-end space-x-3">
+                            <button
+                                @click="showDeleteConfirmation = false"
+                                class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                @click="deleteQA()"
+                                class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                            >
+                                Eliminar
+                            </button>
                         </div>
                     </div>
-                </section>
+                </div>
 
                 <!-- Analytics Section -->
                 <section x-show="activeSection === 'analytics'" class="space-y-6">
