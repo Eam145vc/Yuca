@@ -5,7 +5,7 @@ const os = require('os');
 const mongoose = require('mongoose');
 
 // Decidir si usar MongoDB en producción
-const useMongo = process.env.NODE_ENV === 'production' && process.env.MONGO_URI;
+const useMongo = Boolean(process.env.MONGO_URI);
 
 // Determinar directorio de datos
 let dataDir;
