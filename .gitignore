@@ -30,7 +30,9 @@ pids/
 *.swp
 *.swo
 
-# OS generated files
+manual-test-instructions.md
+test-dashboard-access.js
+FRONTEND_DEPLOYMENT.md
 .DS_Store
 .DS_Store?
 ._*

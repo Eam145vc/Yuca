@@ -90,4 +90,15 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Dashboard route
+router.get('/dashboard', authMiddleware, async (req, res) => {
+  try {
+    // Placeholder for dashboard data
+    res.json({ message: 'Dashboard is accessible' });
+  } catch (error) {
+    console.error('Error accessing dashboard:', error);
+    res.status(500).json({ error: 'Error accessing dashboard' });
+  }
+});
+
 module.exports = router;

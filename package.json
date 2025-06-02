@@ -10,9 +10,13 @@
     "bot": "node scripts/monitorNewChats.js",
     "bot:dev": "nodemon --config nodemon.json scripts/monitorNewChats.js",
     "dashboard": "node server.js",
+    "frontend": "echo \"Warning: The frontend service is deprecated. Use npm start instead.\" && node frontend-server.js",
+    "frontend:dev": "echo \"Warning: The frontend service is deprecated. Use npm run dev instead.\" && nodemon --config nodemon.json frontend-server.js",
     "all": "concurrently \"npm run bot\" \"npm run dashboard\"",
     "all:dev": "concurrently \"npm run bot:dev\" \"npm run dev\"",
-    "setup": "node scripts/setup.js"
+    "setup": "node scripts/setup.js",
+    "test:dashboard": "node test-dashboard-access.js",
+    "test:architecture": "node -e \"console.log('Running architecture test script...'); require('child_process').execSync(process.platform === 'win32' ? 'test-architecture-changes.bat' : 'bash test-architecture-changes.sh', {stdio: 'inherit'});\""
   },
   "repository": {
     "type": "git",

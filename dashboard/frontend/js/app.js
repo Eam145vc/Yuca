@@ -43,6 +43,7 @@ function dashboardApp() {
         
         // Initialization
         async init() {
+            console.log('Initializing dashboard app...');
             // Check authentication
             const token = localStorage.getItem('airbnbot_token');
             if (token) {
@@ -60,6 +61,7 @@ function dashboardApp() {
         
         // Authentication Methods
         async login() {
+            console.log('Attempting to log in with PIN:', this.loginPin);
             try {
                 const response = await fetch('/dashboard/api/auth/login', {
                     method: 'POST',
@@ -81,6 +83,7 @@ function dashboardApp() {
                 }
             } catch (error) {
                 console.error('Login error:', error);
+                console.error('Response:', response);
                 this.loginError = true;
             }
         },
@@ -109,6 +112,7 @@ function dashboardApp() {
                 }
             } catch (error) {
                 console.error('Error loading Q&A data:', error);
+                console.error('Response:', response);
                 this.showToast('Error al cargar las preguntas y respuestas', 'error');
             }
         },
@@ -125,6 +129,7 @@ function dashboardApp() {
                 }
             } catch (error) {
                 console.error('Error loading analytics:', error);
+                console.error('Response:', response);
                 this.showToast('Error al cargar analíticas', 'error');
             }
         },
@@ -310,6 +315,7 @@ function dashboardApp() {
                     console.log('Airbnb status data:', data);
                 } else {
                     console.error('Airbnb status error:', await response.text());
+                    console.error('Response:', response);
                 }
             } catch (error) {
                 console.error('Error checking Airbnb status:', error);
@@ -368,6 +374,7 @@ function dashboardApp() {
                 }
             } catch (error) {
                 console.error('Error clearing Airbnb cookies:', error);
+                console.error('Response:', response);
                 this.showToast('Error al eliminar cookies: ' + error.message, 'error');
             }
         },

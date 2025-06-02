@@ -64,6 +64,7 @@ try {
 
 // Serve dashboard HTML for all non-API routes
 app.get('*', (req, res) => {
+    console.log(`[DEBUG] Dashboard backend serving HTML for: ${req.url} from host: ${req.get('host')}`);
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 

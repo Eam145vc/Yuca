@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors({
     origin: [
-        'https://fronted-airbnbot.onrender.com',
+        'https://fronted-airbnbot.onrender.com', // Kept for backward compatibility during transition
         'https://bot-root-airbnbot.onrender.com',
         'https://yuca.onrender.com'
     ],
@@ -20,16 +20,24 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static('public'));
 
+// Serve the dashboard directly instead of redirecting
+app.use('/dashboard', (req, res, next) => {
+  const host = req.get('host');
+  console.log(`[DEBUG] Dashboard request from host: ${host} - Serving directly`);
+  next();
+});
+
 // Servir el dashboard
 app.use('/dashboard', dashboardApp);
 
-// Root path should not redirect to dashboard
+// Root path with updated information
 app.get('/', (req, res) => {
+    const host = req.get('host');
     res.json({
         message: 'AirbnBOT API Server',
-        info: 'This is the API server. To access the dashboard, go to /dashboard or use the frontend URL.',
+        info: 'This is the API server. The dashboard is now served directly from this service.',
         endpoints: {
-            dashboard: '/dashboard',
+            dashboard: `https://${host}/dashboard`,
             health: '/health'
         }
     });
@@ -59,7 +67,8 @@ setupDatabase()
     .then(() => {
         app.listen(PORT, () => {
             console.log(`🚀 AirbnBOT Server running on https://yuca.onrender.com`);
-            console.log(`📊 Dashboard available at https://yuca.onrender.com/dashboard`);
+            console.log(`📊 Dashboard now served directly at https://yuca.onrender.com/dashboard`);
+            console.log(`📊 Dashboard also available at https://bot-root-airbnbot.onrender.com/dashboard`);
             console.log(`💾 Database initialized successfully`);
         });
     })
