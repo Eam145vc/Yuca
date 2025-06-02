@@ -6,6 +6,7 @@ const dashboardApp = require('./dashboard/backend/app');
 const { setupDatabase } = require('./dashboard/backend/database');
 
 const app = express();
+app.set('trust proxy', true);
 const PORT = process.env.PORT || 3000;
 
 // Middleware
