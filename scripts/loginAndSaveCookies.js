@@ -1,5 +1,6 @@
 // scripts/loginAndSaveCookies.js
 console.log('🔑 Iniciando login en Airbnb con manejo de 2FA y guardado de cookies');
+console.log('🔍 Validando variables de entorno...');
 require('dotenv').config();
 const puppeteer = require('puppeteer');
 const fs        = require('fs');
@@ -16,10 +17,12 @@ const chatId = process.env.TELEGRAM_CHAT_ID;
   const password = process.env.AIRBNB_PASSWORD;
   if (!email || !password) {
     console.error('❌ Debes definir AIRBNB_EMAIL y AIRBNB_PASSWORD en .env');
+    console.error('🔍 Variables de entorno no definidas. Saliendo...');
     process.exit(1);
   }
   if (!process.env.TELEGRAM_TOKEN || !process.env.TELEGRAM_CHAT_ID) {
     console.error('❌ Debes definir TELEGRAM_TOKEN y TELEGRAM_CHAT_ID en .env');
+    console.error('🔍 Variables de entorno no definidas. Saliendo...');
     process.exit(1);
   }
 
@@ -38,17 +41,22 @@ const chatId = process.env.TELEGRAM_CHAT_ID;
   // 3) Ir a la página de login
   await page.goto('https://www.airbnb.com/login', { waitUntil: 'networkidle2' });
   console.log('📄 Página de login cargada');
+  console.log('🔍 Esperando que la página cargue completamente...');
 
   // 4) Pausa de 3 s para que carguen scripts/animaciones
   await new Promise(r => setTimeout(r, 3000));
   console.log('⏸ Pausa de 3 s completada');
+  console.log('🔍 Intentando hacer clic en el botón "Continue with email"...');
 
   // 5) Clic en “Continue with email”
   // Click "Continue with email" button by text
   const xpathEmailBtn = "//button[contains(., 'Continue with email') or contains(., 'Correo electrónico')]";
   await page.waitForXPath(xpathEmailBtn, { visible: true });
   const [emailBtn] = await page.$x(xpathEmailBtn);
-  if (!emailBtn) throw new Error('No se encontró el botón "Continue with email"');
+  if (!emailBtn) {
+      console.error('❌ No se encontró el botón "Continue with email"');
+      throw new Error('No se encontró el botón "Continue with email"');
+  }
   await emailBtn.click();
   console.log('➡️ Click en "Continue with email"');
 
@@ -63,11 +71,13 @@ const chatId = process.env.TELEGRAM_CHAT_ID;
   await page.waitForSelector(continueBtnSel, { visible: true });
   await page.click(continueBtnSel);
   console.log('➡️ Click en “Continue”');
+  console.log('🔍 Esperando que la página de contraseña cargue...');
 
   // 8) Escribir la contraseña
   const pwInputSel = 'input[name="user[password]"]';
   await page.waitForSelector(pwInputSel, { visible: true });
   console.log('🔒 Password a tipear: [oculto]');
+  console.log('🔍 Intentando iniciar sesión...');
   await page.type(pwInputSel, password);
 
   // 9) Clic en “Iniciar sesión”
@@ -82,6 +92,7 @@ const chatId = process.env.TELEGRAM_CHAT_ID;
     await page.waitForSelector('div.b98pgng', { visible: true, timeout: 15000 });
     twoFaRequired = true;
     console.log('🔐 Modal de Confirm account detectado - 2FA requerido');
+    console.log('🔍 Esperando que el usuario ingrese el código 2FA...');
   } catch {
     console.log('✅ No apareció modal de 2FA - login directo');
   }
@@ -174,12 +185,14 @@ const chatId = process.env.TELEGRAM_CHAT_ID;
     // Esperar navegación automática tras último dígito
     await page.waitForNavigation({ waitUntil: 'networkidle2' });
     console.log('✅ 2FA enviado y validado automáticamente');
+    console.log('🔍 Guardando cookies...');
   }
 
   // 15) Guardar cookies
   const cookies = await page.cookies();
   fs.writeFileSync(cookiePath, JSON.stringify(cookies, null, 2));
   console.log('💾 Cookies guardadas en:', cookiePath);
+  console.log('🔚 Cierre del navegador y finalización del proceso de login.');
 
   // 16) Cerrar navegador
   await browser.close();
