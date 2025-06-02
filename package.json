@@ -16,8 +16,7 @@
     "all:dev": "concurrently \"npm run bot:dev\" \"npm run dev\"",
     "setup": "node scripts/setup.js",
     "test:dashboard": "node test-dashboard-access.js",
-    "test:architecture": "node -e \"console.log('Running architecture test script...'); require('child_process').execSync(process.platform === 'win32' ? 'test-architecture-changes.bat' : 'bash test-architecture-changes.sh', {stdio: 'inherit'});\"",
-    "postinstall": "npx puppeteer install"
+    "test:architecture": "node -e \"console.log('Running architecture test script...'); require('child_process').execSync(process.platform === 'win32' ? 'test-architecture-changes.bat' : 'bash test-architecture-changes.sh', {stdio: 'inherit'});\""
   },
   "repository": {
     "type": "git",
