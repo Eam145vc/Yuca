@@ -279,8 +279,8 @@ function dashboardApp() {
         
         // API Helper
         async apiCall(url, options = {}) {
-            const baseUrl = 'https://yuca.onrender.com';
-            const fetchUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
+            // Use relative URLs instead of hardcoded base URL
+            const fetchUrl = url.startsWith('http') ? url : url;
             const token = localStorage.getItem('airbnbot_token');
             const headers = {
                 'Content-Type': 'application/json',
@@ -295,6 +295,104 @@ function dashboardApp() {
                 ...options,
                 headers
             });
+        },
+        
+        // Airbnb Login Methods
+        async checkAirbnbStatus() {
+            try {
+                console.log('Checking Airbnb status...');
+                const response = await this.apiCall('/dashboard/api/airbnb/status');
+                console.log('Airbnb status response:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.airbnbStatus = data;
+                    console.log('Airbnb status data:', data);
+                } else {
+                    console.error('Airbnb status error:', await response.text());
+                }
+            } catch (error) {
+                console.error('Error checking Airbnb status:', error);
+            }
+        },
+        
+        async startAirbnbLogin() {
+            if (this.airbnbLoginInProgress) return;
+            
+            console.log('Starting Airbnb login process...');
+            this.airbnbLoginInProgress = true;
+            this.airbnbLoginOutput = ['Iniciando proceso de login...'];
+            
+            try {
+                const response = await this.apiCall('/dashboard/api/airbnb/login', {
+                    method: 'POST'
+                });
+                
+                console.log('Airbnb login response:', response.status);
+                
+                const data = await response.json();
+                console.log('Airbnb login data:', data);
+                
+                this.airbnbLoginOutput.push(data.message || 'Proceso iniciado');
+                
+                if (data.note) {
+                    this.airbnbLoginOutput.push(data.note);
+                }
+                
+                // Poll for status updates
+                this.startLoginStatusPolling();
+            } catch (error) {
+                console.error('Error starting Airbnb login:', error);
+                this.airbnbLoginOutput.push('Error al iniciar el proceso de login: ' + error.message);
+                this.airbnbLoginInProgress = false;
+            }
+        },
+        
+        async clearAirbnbCookies() {
+            try {
+                console.log('Clearing Airbnb cookies...');
+                const response = await this.apiCall('/dashboard/api/airbnb/logout', {
+                    method: 'POST'
+                });
+                
+                console.log('Clear cookies response:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Clear cookies data:', data);
+                    this.showToast(data.message || 'Cookies eliminadas');
+                    await this.checkAirbnbStatus();
+                } else {
+                    console.error('Clear cookies error:', await response.text());
+                    this.showToast('Error al eliminar cookies', 'error');
+                }
+            } catch (error) {
+                console.error('Error clearing Airbnb cookies:', error);
+                this.showToast('Error al eliminar cookies: ' + error.message, 'error');
+            }
+        },
+        
+        startLoginStatusPolling() {
+            // Poll for status updates every 5 seconds
+            const pollInterval = setInterval(async () => {
+                await this.checkAirbnbStatus();
+                
+                if (this.airbnbStatus.loggedIn) {
+                    this.airbnbLoginOutput.push('✅ Login completado con éxito');
+                    this.airbnbLoginInProgress = false;
+                    clearInterval(pollInterval);
+                    this.showToast('Login en Airbnb completado');
+                }
+            }, 5000);
+            
+            // Stop polling after 5 minutes (maximum time for login)
+            setTimeout(() => {
+                if (this.airbnbLoginInProgress) {
+                    clearInterval(pollInterval);
+                    this.airbnbLoginInProgress = false;
+                    this.airbnbLoginOutput.push('⚠️ Tiempo de espera agotado. Verifica el estado manualmente.');
+                }
+            }, 5 * 60 * 1000);
         },
         
         // Polling for real-time updates

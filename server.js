@@ -9,16 +9,30 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors({ origin: 'https://fronted-airbnbot.onrender.com' }));
+app.use(cors({
+    origin: [
+        'https://fronted-airbnbot.onrender.com',
+        'https://bot-root-airbnbot.onrender.com',
+        'https://yuca.onrender.com'
+    ],
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.static('public'));
 
 // Servir el dashboard
 app.use('/dashboard', dashboardApp);
 
-// Redirigir raíz al dashboard
+// Root path should not redirect to dashboard
 app.get('/', (req, res) => {
-    res.redirect('/dashboard');
+    res.json({
+        message: 'AirbnBOT API Server',
+        info: 'This is the API server. To access the dashboard, go to /dashboard or use the frontend URL.',
+        endpoints: {
+            dashboard: '/dashboard',
+            health: '/health'
+        }
+    });
 });
 
 // Health check endpoint
